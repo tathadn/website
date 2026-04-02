@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Projects — Tathagata Debnath</title>
+    <meta name="description" content="AI/ML engineering, agentic systems, and research software by Tathagata Debnath." />
+    <meta property="og:title" content="Projects — Tathagata Debnath" />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="index.html" aria-label="Home">Tathagata Debnath</a>
+        <nav class="nav" aria-label="Primary">
+          <a href="index.html">Home</a>
+          <a class="active" href="projects.html">Projects</a>
+          <a href="publications.html">Publications</a>
+          <a href="blog.html">Blog</a>
+        </nav>
+        <a class="button primary" href="contact.html">Contact</a>
+      </div>
+    </header>
+
+    <main class="site-shell page">
+      <section class="hero" style="grid-template-columns: 1fr">
+        <div>
+          <span class="eyebrow">Projects</span>
+          <h1>AI/ML engineering, agentic systems, and research software.</h1>
+        </div>
+      </section>
+
+      <!-- AI/ML Projects -->
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <span class="kicker">AI/ML Engineering</span>
+            <h2>Foundation model fine-tuning and agentic systems.</h2>
+          </div>
+        </div>
+
+        <!-- CodeQ -->
+        <article class="feature" style="margin-bottom: 1.2rem">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+            <div>
+              <span class="tag warm">Flagship</span>
+              <h3 style="margin: 0.9rem 0 0.3rem">CodeQ — Autonomous Code Debugging Agent</h3>
+              <p style="font-weight: 600; font-size: 0.95rem; color: var(--muted); margin-bottom: 1rem">Qwen2.5-Coder-7B · MCTS · DPO · 2× H100</p>
+            </div>
+          </div>
+          <p>
+            CodeQ is a self-improving code debugging agent inspired by Agent Q (Putta et al., 2024). It uses Monte Carlo Tree Search to systematically explore fix strategies for buggy code, an AI self-critique mechanism with dual-temperature scoring to rank proposed fixes, and Direct Preference Optimization to teach the model to prefer successful fixes over failed ones — all without human intervention.
+          </p>
+          <p style="margin-top: 0.8rem">
+            The system runs across two NVIDIA H100 nodes: Machine A handles MCTS inference in 4-bit quantization (~4–6 GB VRAM), while Machine B runs DPO training with LoRA in bf16 (~30–35 GB VRAM). LoRA adapters are transferred between machines via scp, enabling a pipelined workflow where exploration and training overlap.
+          </p>
+
+          <div style="margin-top: 1.4rem; background: var(--surface-container-low); border-radius: 12px; padding: 1.2rem; overflow-x: auto;">
+            <p class="kicker" style="margin-bottom: 0.8rem">Key Results</p>
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem; color: var(--muted)">
+              <thead>
+                <tr style="border-bottom: 1px solid rgba(196,198,207,0.3)">
+                  <th style="text-align: left; padding: 0.5rem 0.8rem; font-weight: 700; color: var(--primary)">Metric</th>
+                  <th style="text-align: right; padding: 0.5rem 0.8rem; font-weight: 700; color: var(--primary)">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="padding: 0.5rem 0.8rem">Pre-refactor line-edit baseline</td>
+                  <td style="padding: 0.5rem 0.8rem; text-align: right; font-weight: 700">~10% (parse failures)</td>
+                </tr>
+                <tr style="background: rgba(0,32,69,0.02)">
+                  <td style="padding: 0.5rem 0.8rem">Full rewrite baseline</td>
+                  <td style="padding: 0.5rem 0.8rem; text-align: right; font-weight: 700">43.9% (54/123)</td>
+                </tr>
+                <tr style="background: rgba(0,32,69,0.02)">
+                  <td style="padding: 0.5rem 0.8rem">MCTS rewrite (base model)</td>
+                  <td style="padding: 0.5rem 0.8rem; text-align: right; font-weight: 700; color: var(--primary)">81.3% (100/123)</td>
+                </tr>
+                <tr>
+                  <td style="padding: 0.5rem 0.8rem">MCTS rewrite (+ DPO Round 2)</td>
+                  <td style="padding: 0.5rem 0.8rem; text-align: right; font-weight: 700; color: var(--primary)">84.0% (42/50)</td>
+                </tr>
+                <tr style="background: rgba(0,32,69,0.02)">
+                  <td style="padding: 0.5rem 0.8rem">Improvement from rewrite refactor</td>
+                  <td style="padding: 0.5rem 0.8rem; text-align: right; font-weight: 700">10% → 81.3%</td>
+                </tr>
+                <tr>
+                  <td style="padding: 0.5rem 0.8rem">DPO transfer to full_rewrite mode</td>
+                  <td style="padding: 0.5rem 0.8rem; text-align: right">No transfer</td>
+                </tr>
+              </tbody>
+            </table>
+            <p style="margin-top: 0.8rem; font-size: 0.82rem; color: var(--muted)">Note: 81% data duplication discovered and fixed in DebugBench dataset during preprocessing.</p>
+          </div>
+
+          <div class="chips" style="margin-top: 1.2rem">
+            <span class="chip">Qwen2.5-Coder-7B-Instruct</span>
+            <span class="chip">MCTS</span>
+            <span class="chip">DPO</span>
+            <span class="chip">LoRA r=32</span>
+            <span class="chip">bf16</span>
+            <span class="chip">4-bit bitsandbytes</span>
+            <span class="chip">HuggingFace TRL</span>
+            <span class="chip">Flash Attention 2</span>
+            <span class="chip">Docker</span>
+            <span class="chip">2× NVIDIA H100 94GB</span>
+            <span class="chip">W&amp;B</span>
+          </div>
+          <div style="margin-top: 1.2rem; display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.9rem; font-weight: 700">
+            <a href="https://github.com/tathadn/codeq" target="_blank" rel="noopener" style="color: var(--primary)">GitHub →</a>
+            <a href="blog/codeq.html" style="color: var(--primary)">Technical Blog Post →</a>
+          </div>
+        </article>
+
+        <!-- VisionTriage -->
+        <article class="feature" style="margin-bottom: 1.2rem">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+            <div>
+              <span class="tag">In Progress</span>
+              <h3 style="margin: 0.9rem 0 0.3rem">VisionTriage — Multimodal Bug Report Triage</h3>
+              <p style="font-weight: 600; font-size: 0.95rem; color: var(--muted); margin-bottom: 1rem">Qwen2.5-VL-7B-Instruct · QLoRA · Eclipse/Mozilla · Rico</p>
+            </div>
+          </div>
+          <p>
+            VisionTriage fine-tunes Qwen2.5-VL-7B-Instruct with QLoRA to automatically triage software bug reports that include screenshots. The model takes a screenshot of a UI bug plus a text description and outputs structured triage metadata: severity level, affected component, bug type classification, root cause hypothesis, and suggested fix.
+          </p>
+          <p style="margin-top: 0.8rem">
+            The text-only severity prediction baseline is benchmarked against published methods (SevPredict, MASP, BERT-SBR) on the standard Eclipse/Mozilla Defect Tracking Dataset (~215K bug reports). The multimodal extension uses Rico screenshots with programmatic bug injection to demonstrate that adding visual context improves triage accuracy over text-only approaches.
+          </p>
+          <p style="margin-top: 0.8rem">
+            This project connects directly to CodeQ — CodeQ fixes bugs from code; VisionTriage triages bugs from visual reports before they reach a developer.
+          </p>
+          <div class="chips" style="margin-top: 1.2rem">
+            <span class="chip">Qwen2.5-VL-7B-Instruct</span>
+            <span class="chip">QLoRA</span>
+            <span class="chip">Eclipse/Mozilla Dataset</span>
+            <span class="chip">Rico</span>
+            <span class="chip">Synthetic Bug Injection</span>
+            <span class="chip">HuggingFace TRL</span>
+            <span class="chip">Gradio</span>
+          </div>
+        </article>
+
+        <!-- Parallel Multi-Agent Codegen -->
+        <article class="feature" style="margin-bottom: 1.2rem">
+          <span class="tag">Featured</span>
+          <h3 style="margin: 0.9rem 0 0.3rem">Parallel Multi-Agent Code Generation</h3>
+          <p style="font-weight: 600; font-size: 0.95rem; color: var(--muted); margin-bottom: 1rem">DAG-Based Agent Orchestration for Code Synthesis</p>
+          <p>
+            A DAG-based multi-agent code generation system built with LangGraph and the native Anthropic SDK. An orchestrator agent analyzes coding tasks, builds a dependency graph, and dispatches parallel async coder workers that generate, review, and test code through structured handoffs.
+          </p>
+          <div class="chips" style="margin-top: 1.2rem">
+            <span class="chip">LangGraph</span>
+            <span class="chip">Anthropic SDK</span>
+            <span class="chip">asyncio</span>
+            <span class="chip">Python</span>
+          </div>
+          <div style="margin-top: 1.2rem; display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.9rem; font-weight: 700">
+            <a href="https://github.com/tathadn/parallel-multi-agent-codegen" target="_blank" rel="noopener" style="color: var(--primary)">GitHub →</a>
+          </div>
+        </article>
+
+        <!-- Self-Evolving -->
+        <article class="feature" style="margin-bottom: 1.2rem">
+          <span class="tag">Featured</span>
+          <h3 style="margin: 0.9rem 0 0.3rem">Self-Evolving Code Generation</h3>
+          <p style="font-weight: 600; font-size: 0.95rem; color: var(--muted); margin-bottom: 1rem">LLM-as-Judge · Autonomous Prompt Evolution</p>
+          <p>
+            Extension of the multi-agent pipeline that adds an LLM-as-Judge evaluator, failure analyzer, and autonomous prompt evolver. The system forms a generation loop where the tester agent rewrites its own system prompt based on evaluation feedback, creating a self-improving code generation pipeline.
+          </p>
+          <div class="chips" style="margin-top: 1.2rem">
+            <span class="chip">LangGraph</span>
+            <span class="chip">LLM-as-Judge</span>
+            <span class="chip">Prompt Evolution</span>
+            <span class="chip">JSON Tracker</span>
+            <span class="chip">Docker</span>
+          </div>
+          <div style="margin-top: 1.2rem; display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.9rem; font-weight: 700">
+            <a href="https://github.com/tathadn/self-evolving-codegen" target="_blank" rel="noopener" style="color: var(--primary)">GitHub →</a>
+          </div>
+        </article>
+
+        <!-- Multi-Agent V1 -->
+        <article class="feature" style="margin-bottom: 1.2rem">
+          <span class="tag">Foundation</span>
+          <h3 style="margin: 0.9rem 0 0.3rem">Multi-Agent Code Generation V1</h3>
+          <p style="font-weight: 600; font-size: 0.95rem; color: var(--muted); margin-bottom: 1rem">Sequential Pipeline · LangSmith Tracing</p>
+          <p>
+            Sequential multi-agent pipeline using an Orchestrator → Planner → Coder → Reviewer → Tester architecture. Includes LangSmith tracing for observability and Docker sandboxing for safe code execution. This was the foundation that led to the parallel and self-evolving versions.
+          </p>
+          <div class="chips" style="margin-top: 1.2rem">
+            <span class="chip">LangChain</span>
+            <span class="chip">LangSmith</span>
+            <span class="chip">Docker</span>
+            <span class="chip">Python</span>
+          </div>
+          <div style="margin-top: 1.2rem; display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.9rem; font-weight: 700">
+            <a href="https://github.com/tathadn/multi-agent-codegen" target="_blank" rel="noopener" style="color: var(--primary)">GitHub →</a>
+          </div>
+        </article>
+
+      </section>
+
+      <!-- Research Software -->
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <span class="kicker">Published Research Software</span>
+            <h2>CRAN packages and bioinformatics tools.</h2>
+          </div>
+        </div>
+
+        <div class="grid two">
+
+          <!-- OptCirClust -->
+          <article class="feature">
+            <span class="tag warm">Published · CRAN</span>
+            <h3 style="margin: 0.9rem 0 0.3rem">OptCirClust</h3>
+            <p style="font-weight: 600; font-size: 0.95rem; color: var(--muted); margin-bottom: 1rem">Fast Optimal Circular Clustering</p>
+            <p>
+              Published CRAN R package implementing a fast optimal clustering algorithm for circular (1-dimensional periodic) data. Uses dynamic programming to find the globally optimal partition, avoiding local optima issues of iterative methods like k-means. Published in IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI).
+            </p>
+            <div class="chips" style="margin-top: 1.2rem">
+              <span class="chip">R</span>
+              <span class="chip">CRAN</span>
+              <span class="chip">Dynamic Programming</span>
+            </div>
+            <div style="margin-top: 1.2rem; display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.9rem; font-weight: 700">
+              <a href="https://cran.r-project.org/package=OptCirClust" target="_blank" rel="noopener" style="color: var(--primary)">CRAN →</a>
+              <a href="https://github.com/tathadn/OptCirClust" target="_blank" rel="noopener" style="color: var(--primary)">GitHub →</a>
+              <a href="publications.html" style="color: var(--primary)">IEEE TPAMI Paper →</a>
+            </div>
+          </article>
+
+          <!-- CircularSilhouette -->
+          <article class="feature">
+            <span class="tag warm">Published · CRAN</span>
+            <h3 style="margin: 0.9rem 0 0.3rem">CircularSilhouette</h3>
+            <p style="font-weight: 600; font-size: 0.95rem; color: var(--muted); margin-bottom: 1rem">Cluster Validation for Circular Data</p>
+            <p>
+              Published CRAN R package implementing a silhouette-based cluster validation index designed specifically for circular data. Provides a quantitative measure of clustering quality that accounts for the periodic nature of circular measurements. Published in IEEE/ACM Transactions on Computational Biology and Bioinformatics (TCBB).
+            </p>
+            <div class="chips" style="margin-top: 1.2rem">
+              <span class="chip">R</span>
+              <span class="chip">CRAN</span>
+              <span class="chip">Statistical Methods</span>
+            </div>
+            <div style="margin-top: 1.2rem; display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.9rem; font-weight: 700">
+              <a href="https://cran.r-project.org/package=CircularSilhouette" target="_blank" rel="noopener" style="color: var(--primary)">CRAN →</a>
+              <a href="https://github.com/tathadn/CircularSilhouette" target="_blank" rel="noopener" style="color: var(--primary)">GitHub →</a>
+              <a href="publications.html" style="color: var(--primary)">IEEE/ACM TCBB Paper →</a>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
+      <!-- Retrieval / Other -->
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <span class="kicker">Retrieval &amp; Applied ML</span>
+            <h2>RAG systems and applied machine learning.</h2>
+          </div>
+        </div>
+
+        <!-- NutriBot -->
+        <article class="feature">
+          <span class="tag">Featured</span>
+          <h3 style="margin: 0.9rem 0 0.3rem">NutriBot — RAG Nutrition Chatbot</h3>
+          <p style="font-weight: 600; font-size: 0.95rem; color: var(--muted); margin-bottom: 1rem">Hybrid FAISS + BM25 · Reciprocal Rank Fusion</p>
+          <p>
+            RAG-based nutrition Q&amp;A chatbot using hybrid FAISS + BM25 retrieval merged via Reciprocal Rank Fusion. 30-question evaluation pipeline with hybrid retrieval achieving improved relevance over single-method baselines. Includes cost optimization strategies for API usage.
+          </p>
+          <div class="chips" style="margin-top: 1.2rem">
+            <span class="chip">FAISS</span>
+            <span class="chip">BM25</span>
+            <span class="chip">Reciprocal Rank Fusion</span>
+            <span class="chip">LangChain</span>
+            <span class="chip">Python</span>
+          </div>
+          <div style="margin-top: 1.2rem; display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.9rem; font-weight: 700">
+            <a href="https://github.com/tathadn/nutribot" target="_blank" rel="noopener" style="color: var(--primary)">GitHub →</a>
+          </div>
+        </article>
+
+      </section>
+
+    </main>
+
+    <footer class="page-footer site-shell" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding-bottom: 3rem;">
+      <div>
+        <span style="font-family: 'Manrope', sans-serif; font-weight: 800; color: var(--primary)">Tathagata Debnath</span>
+        <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem">Las Cruces, New Mexico · tathadbn@nmsu.edu</div>
+      </div>
+      <div style="display: flex; gap: 1.4rem; flex-wrap: wrap; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted)">
+        <a href="index.html" style="color: inherit">Home</a>
+        <a href="publications.html" style="color: inherit">Publications</a>
+        <a href="blog.html" style="color: inherit">Blog</a>
+        <a href="contact.html" style="color: inherit">Contact</a>
+      </div>
+      <div style="font-size: 0.78rem; color: var(--muted)">© 2026 Tathagata Debnath</div>
+    </footer>
+
+  </body>
+</html>

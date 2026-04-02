@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blog — Tathagata Debnath</title>
+    <meta name="description" content="Technical writeups on AI/ML engineering and research by Tathagata Debnath." />
+    <meta property="og:title" content="Blog — Tathagata Debnath" />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .meta-line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .post-list {
+        display: grid;
+        gap: 1.2rem;
+      }
+      .post-card {
+        display: grid;
+        gap: 0.8rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="index.html" aria-label="Home">Tathagata Debnath</a>
+        <nav class="nav" aria-label="Primary">
+          <a href="index.html">Home</a>
+          <a href="projects.html">Projects</a>
+          <a href="publications.html">Publications</a>
+          <a class="active" href="blog.html">Blog</a>
+        </nav>
+        <a class="button primary" href="contact.html">Contact</a>
+      </div>
+    </header>
+
+    <main class="site-shell page">
+      <section class="hero" style="grid-template-columns: 1fr">
+        <div>
+          <span class="eyebrow">Blog</span>
+          <h1>Technical writeups on AI/ML engineering and research.</h1>
+        </div>
+      </section>
+
+      <!-- Posts -->
+      <section class="section" id="posts" style="margin-top: 2rem">
+        <div class="section-head">
+          <div>
+            <span class="kicker">Posts</span>
+            <h2>Implementation notes and lessons from building.</h2>
+          </div>
+        </div>
+
+        <div class="post-list">
+
+          <!-- CodeQ post -->
+          <article class="feature post-card">
+            <div class="meta-line">
+              <span>AI/ML Engineering</span>
+              <span>~9 min read</span>
+              <span>April 2026</span>
+            </div>
+            <div>
+              <span class="tag warm">Published</span>
+              <h3 style="margin: 0.9rem 0 0.7rem">
+                CodeQ: Teaching an LLM to Debug Code with MCTS and DPO
+              </h3>
+              <p>
+                How to build a self-improving code debugging agent: MCTS exploration, dual-temperature critique, DPO training from the model's own rollouts — and the critical refactor that went from 10% to 81.3% fix rate on DebugBench. Includes the 81% data duplication discovery, the bf16 NaN fix, and an honest accounting of what DPO did and didn't transfer.
+              </p>
+            </div>
+            <div>
+              <a href="blog/codeq.html" style="font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 0.95rem; color: var(--primary)">Read →</a>
+            </div>
+          </article>
+
+          <!-- VisionTriage (future) -->
+          <article class="card post-card" style="opacity: 0.65">
+            <div class="meta-line">
+              <span>AI/ML Engineering</span>
+              <span>Coming soon</span>
+            </div>
+            <div>
+              <span class="tag">In Progress</span>
+              <h3 style="margin: 0.9rem 0 0.7rem">
+                Adding Eyes to Bug Report Triage: Multimodal VLM Fine-Tuning
+              </h3>
+              <p>
+                Building a multimodal bug triage benchmark from scratch: Eclipse/Mozilla text baseline vs. SevPredict and MASP, then adding Rico screenshots to test whether visual context improves severity prediction. Will include the dataset release on HuggingFace.
+              </p>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="page-footer site-shell" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding-bottom: 3rem;">
+      <div>
+        <span style="font-family: 'Manrope', sans-serif; font-weight: 800; color: var(--primary)">Tathagata Debnath</span>
+        <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem">Las Cruces, New Mexico · tathadbn@nmsu.edu</div>
+      </div>
+      <div style="display: flex; gap: 1.4rem; flex-wrap: wrap; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted)">
+        <a href="index.html" style="color: inherit">Home</a>
+        <a href="projects.html" style="color: inherit">Projects</a>
+        <a href="publications.html" style="color: inherit">Publications</a>
+        <a href="contact.html" style="color: inherit">Contact</a>
+      </div>
+      <div style="font-size: 0.78rem; color: var(--muted)">© 2026 Tathagata Debnath</div>
+    </footer>
+
+  </body>
+</html>
