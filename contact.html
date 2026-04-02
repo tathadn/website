@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contact — Tathagata Debnath</title>
+    <meta name="description" content="Get in touch with Tathagata Debnath. Open to AI/ML internships (Summer 2026) and research collaborations." />
+    <meta property="og:title" content="Contact — Tathagata Debnath" />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .contact-grid {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      }
+
+      .contact-form {
+        display: grid;
+        gap: 1rem;
+        margin-top: 1.5rem;
+      }
+
+      .contact-form label {
+        display: grid;
+        gap: 0.45rem;
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .contact-form input,
+      .contact-form textarea {
+        width: 100%;
+        border: 1px solid rgba(196, 198, 207, 0.5);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 0.95rem 1rem;
+        font: inherit;
+        color: var(--ink);
+      }
+
+      .contact-form textarea {
+        min-height: 190px;
+        resize: vertical;
+      }
+
+      .contact-form input:focus,
+      .contact-form textarea:focus {
+        outline: 2px solid rgba(0, 32, 69, 0.18);
+        border-color: rgba(0, 32, 69, 0.32);
+      }
+
+      .contact-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.9rem;
+        align-items: center;
+      }
+
+      .helper-note {
+        color: var(--muted);
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+
+      @media (max-width: 900px) {
+        .contact-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="index.html" aria-label="Home">Tathagata Debnath</a>
+        <nav class="nav" aria-label="Primary">
+          <a href="index.html">Home</a>
+          <a href="projects.html">Projects</a>
+          <a href="publications.html">Publications</a>
+          <a href="blog.html">Blog</a>
+        </nav>
+        <a class="button primary active" href="contact.html">Contact</a>
+      </div>
+    </header>
+
+    <main class="site-shell page">
+      <section class="hero">
+        <div>
+          <span class="eyebrow">Contact</span>
+          <h1>Get in Touch.</h1>
+          <p class="lede">
+            Open to AI/ML internships (Summer 2026) and research collaborations.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="mailto:tathadbn@nmsu.edu">Email Directly</a>
+            <a class="button ghost" href="assets/Debnath_Resume_AI_ML.pdf">AI/ML Resume</a>
+            <a class="button ghost" href="assets/Debnath_CV_AI_ML.pdf">CV</a>
+          </div>
+        </div>
+        <div class="panel">
+          <span class="kicker">Contact Info</span>
+          <h3 style="margin: 0.8rem 0 0.6rem">tathadbn@nmsu.edu</h3>
+          <p>
+            Best for internship inquiries, research collaborations, and role-specific opportunities in AI/ML engineering.
+          </p>
+          <div class="link-list" style="margin-top: 1.2rem">
+            <a href="mailto:tathadbn@nmsu.edu">tathadbn@nmsu.edu</a>
+            <a href="mailto:tirtha.debnath@gmail.com">tirtha.debnath@gmail.com</a>
+          </div>
+          <div class="link-list" style="margin-top: 0.8rem">
+            <a href="https://github.com/tathadn" target="_blank" rel="noopener">GitHub</a>
+            <a href="https://scholar.google.com/citations?user=AAErR7QAAAAJ" target="_blank" rel="noopener">Scholar</a>
+            <a href="https://linkedin.com/in/tathagata-debnath-1a68727a" target="_blank" rel="noopener">LinkedIn</a>
+          </div>
+          <p style="margin-top: 1rem; font-size: 0.88rem; color: var(--muted)">Las Cruces, New Mexico, USA</p>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <span class="kicker">Message</span>
+            <h2>Send a note.</h2>
+          </div>
+        </div>
+
+        <div class="contact-grid">
+          <article class="feature">
+            <span class="tag warm">Message Form</span>
+            <form class="contact-form" id="contact-form">
+              <label>
+                Your name
+                <input id="contact-name" name="name" placeholder="Your name" type="text" />
+              </label>
+
+              <label>
+                Your email
+                <input id="contact-email" name="email" placeholder="you@example.com" type="email" />
+              </label>
+
+              <label>
+                Subject
+                <input id="contact-subject" name="subject" placeholder="How can we work together?" type="text" />
+              </label>
+
+              <label>
+                Message
+                <textarea
+                  id="contact-message"
+                  name="message"
+                  placeholder="Write your message here."
+                  required
+                ></textarea>
+              </label>
+
+              <div class="contact-actions">
+                <button class="button primary" type="submit">Open Email Draft</button>
+                <a class="button ghost" href="mailto:tathadbn@nmsu.edu">Use Direct Email</a>
+              </div>
+            </form>
+            <p class="helper-note" style="margin-top: 1rem">
+              Submitting opens your local mail app with the subject and message prefilled for <strong>tathadbn@nmsu.edu</strong>.
+            </p>
+          </article>
+
+          <article class="panel">
+            <span class="kicker">What to include</span>
+            <h3 style="margin: 0.8rem 0 0.6rem">Context helps</h3>
+            <p>
+              Share your context, timeline, and the kind of collaboration or role you have in mind. Links to datasets, papers, repositories, or project briefs are welcome.
+            </p>
+            <div class="link-list" style="margin-top: 1.4rem">
+              <a href="assets/Debnath_Resume_AI_ML.pdf">AI/ML Resume</a>
+              <a href="assets/Debnath_CV_AI_ML.pdf">AI/ML CV</a>
+              <a href="assets/Debnath_Resume_Bioinformatics.pdf">Bioinformatics Resume</a>
+              <a href="assets/Debnath_CV_Bioinformatics.pdf">Bioinformatics CV</a>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="page-footer site-shell" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding-bottom: 3rem;">
+      <span style="font-family: 'Manrope', sans-serif; font-weight: 800; color: var(--primary)">Tathagata Debnath</span>
+      <div style="display: flex; gap: 1.4rem; flex-wrap: wrap; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted)">
+        <a href="index.html" style="color: inherit">Home</a>
+        <a href="projects.html" style="color: inherit">Projects</a>
+        <a href="publications.html" style="color: inherit">Publications</a>
+        <a href="blog.html" style="color: inherit">Blog</a>
+      </div>
+      <div style="font-size: 0.78rem; color: var(--muted)">© 2026 Tathagata Debnath</div>
+    </footer>
+
+    <script>
+      const contactForm = document.getElementById("contact-form");
+
+      contactForm.addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        const name = document.getElementById("contact-name").value.trim();
+        const email = document.getElementById("contact-email").value.trim();
+        const subjectInput = document.getElementById("contact-subject").value.trim();
+        const message = document.getElementById("contact-message").value.trim();
+
+        const subject = subjectInput || "Website inquiry";
+        const bodyLines = [];
+
+        if (name) bodyLines.push("Name: " + name);
+        if (email) bodyLines.push("Email: " + email);
+        if (bodyLines.length) bodyLines.push("");
+        bodyLines.push(message);
+
+        const mailto = "mailto:tathadbn@nmsu.edu?subject=" +
+          encodeURIComponent(subject) +
+          "&body=" +
+          encodeURIComponent(bodyLines.join("\n"));
+
+        window.location.href = mailto;
+      });
+    </script>
+  </body>
+</html>

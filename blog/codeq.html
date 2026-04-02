@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CodeQ: Teaching an LLM to Debug Code with MCTS and DPO — Tathagata Debnath</title>
+    <meta name="description" content="How to build a self-improving code debugging agent using Monte Carlo Tree Search and Direct Preference Optimization. 81.3% fix rate on DebugBench." />
+    <meta property="og:title" content="CodeQ: Teaching an LLM to Debug Code with MCTS and DPO" />
+    <meta property="og:description" content="How to build a self-improving code debugging agent using Monte Carlo Tree Search and Direct Preference Optimization. 81.3% fix rate on DebugBench." />
+    <meta property="og:type" content="article" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <style>
+      .prose {
+        max-width: 68ch;
+      }
+      .prose p {
+        margin-top: 1.2rem;
+        line-height: 1.8;
+      }
+      .prose h2 {
+        font-size: 1.7rem;
+        margin-top: 3rem;
+        margin-bottom: 0.6rem;
+      }
+      .prose h3 {
+        font-size: 1.2rem;
+        margin-top: 2rem;
+        margin-bottom: 0.5rem;
+      }
+      .prose pre {
+        background: var(--primary);
+        color: rgba(255,255,255,0.9);
+        border-radius: 14px;
+        padding: 1.4rem 1.6rem;
+        overflow-x: auto;
+        font-size: 0.85rem;
+        line-height: 1.65;
+        margin-top: 1.2rem;
+        margin-bottom: 1.2rem;
+      }
+      .prose code {
+        font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+        font-size: 0.88em;
+        background: var(--surface-container);
+        padding: 0.15em 0.4em;
+        border-radius: 4px;
+        color: var(--primary);
+      }
+      .prose pre code {
+        background: transparent;
+        color: inherit;
+        padding: 0;
+        font-size: inherit;
+      }
+      .prose ul, .prose ol {
+        padding-left: 1.4rem;
+        margin-top: 0.8rem;
+      }
+      .prose li {
+        margin-top: 0.4rem;
+        line-height: 1.75;
+        color: var(--muted);
+      }
+      .results-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1.2rem;
+        font-size: 0.9rem;
+      }
+      .results-table th {
+        text-align: left;
+        padding: 0.6rem 0.9rem;
+        font-weight: 700;
+        color: var(--primary);
+        border-bottom: 2px solid var(--surface-container);
+      }
+      .results-table td {
+        padding: 0.55rem 0.9rem;
+        color: var(--muted);
+        border-bottom: 1px solid rgba(196,198,207,0.2);
+      }
+      .results-table tr:nth-child(even) td {
+        background: rgba(0,32,69,0.02);
+      }
+      .results-table td:last-child {
+        font-weight: 700;
+        text-align: right;
+      }
+      .post-header {
+        max-width: 72ch;
+        margin-bottom: 3rem;
+      }
+      .post-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 1.4rem;
+      }
+      .callout {
+        background: var(--surface-container-low);
+        border-left: 3px solid var(--primary);
+        padding: 1.2rem 1.4rem;
+        border-radius: 0 12px 12px 0;
+        margin-top: 1.4rem;
+      }
+      .callout p {
+        margin-top: 0;
+      }
+      .diagram {
+        background: var(--primary);
+        color: rgba(255,255,255,0.85);
+        border-radius: 16px;
+        padding: 1.6rem 2rem;
+        margin-top: 1.4rem;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-size: 0.85rem;
+        line-height: 1.7;
+        overflow-x: auto;
+        white-space: pre;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../index.html" aria-label="Home">Tathagata Debnath</a>
+        <nav class="nav" aria-label="Primary">
+          <a href="../index.html">Home</a>
+          <a href="../projects.html">Projects</a>
+          <a href="../publications.html">Publications</a>
+          <a class="active" href="../blog.html">Blog</a>
+        </nav>
+        <a class="button primary" href="../contact.html">Contact</a>
+      </div>
+    </header>
+
+    <main class="site-shell page">
+
+      <div class="post-header">
+        <div class="post-meta">
+          <span>AI/ML Engineering</span>
+          <span>~18 min read</span>
+          <span>2026</span>
+        </div>
+        <span class="eyebrow">Technical Writeup</span>
+        <h1 style="font-size: clamp(2rem, 5vw, 3.6rem); margin-top: 1rem; line-height: 1.02">
+          CodeQ: Teaching an LLM to Debug Code with MCTS and DPO
+        </h1>
+        <p style="margin-top: 1.2rem; font-size: 1.1rem; line-height: 1.75; color: var(--muted); max-width: 58ch">
+          How a single architectural decision — switching from line-level edits to full rewrites — took fix rate from 10% to 81.3% on DebugBench. Plus: the 81% data duplication discovery, a bf16 NaN fix, and what DPO did and didn't transfer.
+        </p>
+      </div>
+
+      <div class="prose">
+
+        <!-- Section 1 -->
+        <h2>1. Introduction</h2>
+        <p>
+          Automated code debugging is hard. Not because current LLMs can't write code — they can. The problem is that debugging requires a search process: generate a fix, test it, observe the result, revise, repeat. A single forward pass through a language model doesn't do that. You need exploration.
+        </p>
+        <p>
+          CodeQ combines two ideas: Monte Carlo Tree Search (MCTS) to systematically explore fix strategies, and Direct Preference Optimization (DPO) to let the model learn from its own exploration data. The result is a self-improving debugging agent that gets better over time without any human labeling.
+        </p>
+        <p>
+          The core inspiration is Agent Q (Putta et al., 2024), which applied MCTS + DPO to web navigation. We adapt the same loop to code: explore bugs with MCTS, extract preference pairs from the trajectories, train with DPO, repeat.
+        </p>
+        <div class="callout">
+          <p><strong>One-line result:</strong> 81.3% fix rate on DebugBench (100/123 unique bugs), up from a 10% apparent baseline before the critical architecture refactor. After DPO Round 2, MCTS mode reaches 84%.</p>
+        </div>
+
+        <!-- Section 2 -->
+        <h2>2. Architecture Overview</h2>
+        <p>
+          The system runs across two machines connected via SSH and scp:
+        </p>
+        <ul>
+          <li><strong>Machine A (inference):</strong> Qwen2.5-Coder-7B-Instruct in 4-bit quantization via bitsandbytes (~4–6 GB VRAM). Handles all MCTS rollouts.</li>
+          <li><strong>Machine B (training):</strong> Full bf16 model with LoRA adapters (~30–35 GB VRAM on an H100 94GB). Runs DPO training.</li>
+        </ul>
+        <p>
+          LoRA adapters are transferred from Machine B to Machine A via scp after each training round, enabling a pipelined workflow where exploration and training can overlap across rounds.
+        </p>
+
+        <div class="diagram">MCTS Rollouts (Machine A, 4-bit)
+        │
+        ▼
+Extract preference pairs
+(winners: fixed bugs, losers: failed attempts)
+        │
+        ▼
+DPO Training (Machine B, bf16 + LoRA)
+        │
+        ▼
+Transfer LoRA adapters via scp
+        │
+        ▼
+Evaluate on DebugBench
+        │
+        ▼
+Repeat</div>
+
+        <h3>MCTS Engine</h3>
+        <p>
+          At each node in the tree, the model generates K=4 candidate fixes at temperature 0.8. A critic (same model, temperature 0.2) scores each candidate on correctness, clarity, and plausibility. UCB1 selects which node to expand next, balancing exploitation of promising fixes with exploration of alternatives.
+        </p>
+        <p>
+          Each candidate fix is executed in a Docker sandbox (no network, 512 MB RAM, 30-second timeout). Pass/fail from the sandbox is the ground truth signal.
+        </p>
+
+        <h3>DPO Training Loop</h3>
+        <p>
+          Preference pairs are extracted from MCTS trajectories: winning fixes (those that passed tests) are the "chosen" completions; failed attempts are "rejected." Blended Q-values (α=0.5 × MCTS value + AI critic score) rank them.
+        </p>
+        <p>
+          We use off-policy DPO with pre-computed reference log-probabilities to decouple the preference data collection from training. LoRA config: rank=32, alpha=64, all attention + MLP layers, lr=5e-6, 2 epochs, β=0.1.
+        </p>
+
+        <!-- Section 3 -->
+        <h2>3. The Critical Refactor: Line Edits → Full Rewrites</h2>
+        <p>
+          The original CodeQ design used a structured action space inspired by SWE-bench-style agents: PLAN, THOUGHT, and CODE_ACTION tokens, with line-level edit operations — EDIT (replace lines), INSERT (add lines), DELETE (remove lines), and RUN_TESTS.
+        </p>
+        <p>
+          This seemed principled. In practice, it was a disaster.
+        </p>
+        <p>
+          The model frequently generated malformed structured outputs: mismatched line numbers, incorrect action syntax, truncated edits. The parser failed silently on many of these, counting them as unsuccessful fixes. Our apparent fix rate was 0.38%. Something was clearly wrong.
+        </p>
+
+        <div class="callout">
+          <p><strong>Discovery:</strong> The 0.38% apparent rate was a parsing artifact. When we added explicit fallback detection, the true base rate on correctly-parsed outputs was ~36%. But the parsing overhead was still killing throughput — MCTS with line edits ran ~14× slower than the rewrite approach.</p>
+        </div>
+
+        <p>
+          The fix was to switch the entire action space to <code>full_rewrite</code>: the model outputs a complete replacement for the buggy function. No structured parsing, no line numbers, no edit operations. Just the fixed code, wrapped in a simple code fence.
+        </p>
+
+        <p>Results after the refactor:</p>
+        <ul>
+          <li>MCTS baseline (full_rewrite, no DPO): <strong>81.3%</strong> fix rate (100/123)</li>
+          <li>Full_rewrite baseline (single pass, no MCTS): 43.9% (54/123)</li>
+          <li>Speed: ~14× faster per rollout than the line-edit approach</li>
+        </ul>
+
+        <p>
+          The lesson is not that full rewrites are always better than line edits. The lesson is that <strong>action space design matters more than model quality</strong>. A simpler, more robust action space that the model can reliably execute will outperform a more expressive action space that introduces parse failures.
+        </p>
+
+        <h3>The Rewrite Prompt</h3>
+        <p>
+          The generation prompt is deliberately minimal:
+        </p>
+<pre><code>You are a debugging assistant. Below is a Python function that contains a bug.
+Your task: output a complete, corrected version of the function.
+Output ONLY the corrected function code, wrapped in ```python ... ```.
+Do not include any explanation.
+
+Buggy function:
+{buggy_code}
+
+Test cases that must pass:
+{test_cases}</code></pre>
+
+        <p>
+          The critic prompt is similarly direct, asking for a score from 0–1 and a brief rationale.
+        </p>
+
+        <!-- Section 4 -->
+        <h2>4. Data Quality: The 81% Duplication Discovery</h2>
+        <p>
+          During preprocessing of DebugBench, we found that approximately 81% of the dataset entries were duplicates. The raw download contained ~650 problem instances; after deduplication, only ~123 unique problems remained.
+        </p>
+        <p>
+          This matters for two reasons:
+        </p>
+        <ul>
+          <li><strong>Inflated metrics:</strong> Any model that memorized training distribution would appear to perform much better on the duplicated set than on the unique problems.</li>
+          <li><strong>Evaluation integrity:</strong> Fix rates reported on the full (duplicated) set are not comparable to fix rates on the deduplicated set.</li>
+        </ul>
+        <p>
+          All CodeQ results are reported on the deduplicated set of 123 unique problems. When comparing to other systems, verify whether they used the deduplicated or raw dataset.
+        </p>
+        <div class="callout">
+          <p><strong>Rule:</strong> Always audit your benchmark before reporting results. The 81% duplication rate was not obvious from the dataset documentation — it required computing pairwise similarity across problem statements and test cases.</p>
+        </div>
+
+        <!-- Section 5 -->
+        <h2>5. DPO Training: What Worked and What Broke</h2>
+
+        <h3>Round 1 DPO</h3>
+        <p>
+          Round 1 DPO ran without incident. We extracted ~400 preference pairs from the MCTS trajectories, trained for 2 epochs, and saw modest improvement on held-out problems.
+        </p>
+
+        <h3>Round 2: The bf16 NaN Collapse</h3>
+        <p>
+          Round 2 DPO training collapsed immediately: all losses went to NaN within the first 100 steps. Gradient norms were normal; learning rate was the same; data distribution was similar.
+        </p>
+        <p>
+          The culprit: bf16 overflow in logit computation during DPO's log-probability calculation. When reference and policy log-probabilities diverge significantly after Round 1 fine-tuning, logit values before softmax can exceed bf16's representable range (~65504), producing NaN.
+        </p>
+        <p>The fix was a custom trainer subclass that upcasts logits to fp32 before computing log-probabilities:</p>
+
+<pre><code>class Fp32LogitsDPOTrainer(DPOTrainer):
+    def concatenated_forward(self, model, batch):
+        outputs = super().concatenated_forward(model, batch)
+        # Upcast logits to fp32 to prevent bf16 overflow
+        if outputs.get("logits") is not None:
+            outputs["logits"] = outputs["logits"].float()
+        return outputs</code></pre>
+
+        <p>
+          A second issue: TRL 1.0.0 broke the <code>precompute_ref_log_probs</code> flag, causing reference log-probs to be recomputed on every step instead of once. This made training ~3× slower and produced incorrect DPO gradients. Fix: pin TRL to 0.29.1.
+        </p>
+
+<pre><code># requirements.txt
+trl==0.29.1  # 1.0.0 broke precompute_ref_log_probs
+</code></pre>
+
+        <h3>Preference Extraction</h3>
+        <p>
+          Preference pairs are extracted by comparing trajectories within the same MCTS tree. For each bug, we identify the best fix (highest Q-value among fixes that passed tests) and the best non-fix (highest Q-value among attempts that failed tests). The Q-value blending:
+        </p>
+<pre><code>def compute_q_value(mcts_value: float, critic_score: float, alpha: float = 0.5) -> float:
+    return alpha * mcts_value + (1 - alpha) * critic_score</code></pre>
+
+        <!-- Section 6 -->
+        <h2>6. Results</h2>
+
+        <div style="background: var(--surface-container-low); border-radius: 16px; padding: 1.4rem; overflow-x: auto; margin-top: 1.4rem">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Configuration</th>
+                <th style="text-align: right">Fix Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Single-pass full_rewrite (no MCTS)</td>
+                <td>43.9% (54/123)</td>
+              </tr>
+              <tr>
+                <td>MCTS + full_rewrite (base model)</td>
+                <td style="color: var(--primary)">81.3% (100/123)</td>
+              </tr>
+              <tr>
+                <td>MCTS + full_rewrite (+ DPO Round 2)</td>
+                <td style="color: var(--primary)">84.0% (42/50)</td>
+              </tr>
+              <tr>
+                <td>Single-pass full_rewrite (+ DPO Round 2)</td>
+                <td>43.9% — no transfer</td>
+              </tr>
+              <tr>
+                <td>Pre-refactor apparent baseline (line edits)</td>
+                <td>~0.38% (parse failures)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>DPO Transfer: The Honest Finding</h3>
+        <p>
+          DPO Round 2 improves MCTS mode from 81.3% to 84%. This is the positive result.
+        </p>
+        <p>
+          DPO Round 2 does <strong>not</strong> transfer to single-pass full_rewrite mode. The fix rate stays at 43.9% — identical to the base model. Zero transfer.
+        </p>
+        <p>
+          The explanation is straightforward: the DPO training data consists entirely of MCTS trajectories. The model learns to prefer good fixes when given MCTS-style multi-step reasoning context. It does not learn to generate better single-pass rewrites, because that behavior was never in the training signal.
+        </p>
+        <p>
+          This is not a failure. It's an informative result about how DPO specialization works in self-improvement loops. The model improves on the task distribution it trained on, not on adjacent tasks.
+        </p>
+
+        <!-- Section 7 -->
+        <h2>7. What I'd Do Differently</h2>
+        <p>
+          Four things worth trying in a Round 3+:
+        </p>
+        <ul>
+          <li>
+            <strong>Train DPO on full_rewrite trajectories</strong> (not just MCTS trajectories) to test whether single-pass transfer is possible.
+          </li>
+          <li>
+            <strong>Run Round 3 to measure diminishing returns.</strong> The 81% → 84% improvement from Round 1 to 2 is modest. It's unclear whether Round 3 would hit a ceiling or keep climbing.
+          </li>
+          <li>
+            <strong>Cross-benchmark generalization.</strong> All results are on DebugBench. SWE-bench Lite would be a stronger test of whether MCTS-trained fix strategies generalize.
+          </li>
+          <li>
+            <strong>Better preference extraction.</strong> The current blended Q-value (α=0.5 MCTS + critic) is a heuristic. A learned value function trained on execution outcomes would be more principled.
+          </li>
+        </ul>
+
+        <div class="callout">
+          <p>
+            The honest finding about no DPO transfer is as interesting as the 81.3% fix rate. It tells you something real about the limits of self-improvement via trajectory-based preference learning — and it points directly at what to fix next.
+          </p>
+        </div>
+
+        <!-- Links -->
+        <h2>Links</h2>
+        <ul>
+          <li><a href="https://github.com/tathadn/codeq" target="_blank" rel="noopener" style="font-weight: 700; color: var(--primary)">GitHub: github.com/tathadn/codeq</a></li>
+          <li>Inspired by: Agent Q — Putta et al., 2024</li>
+        </ul>
+
+      </div><!-- /prose -->
+
+      <!-- Nav between posts -->
+      <div style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid rgba(196,198,207,0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem">
+        <a href="../blog.html" style="font-family: 'Manrope', sans-serif; font-weight: 800; color: var(--primary)">← All Posts</a>
+        <a href="../projects.html" style="font-family: 'Manrope', sans-serif; font-weight: 800; color: var(--primary)">View All Projects →</a>
+      </div>
+
+    </main>
+
+    <footer class="page-footer site-shell" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding-bottom: 3rem;">
+      <span style="font-family: 'Manrope', sans-serif; font-weight: 800; color: var(--primary)">Tathagata Debnath</span>
+      <div style="display: flex; gap: 1.4rem; flex-wrap: wrap; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted)">
+        <a href="../index.html" style="color: inherit">Home</a>
+        <a href="../projects.html" style="color: inherit">Projects</a>
+        <a href="../publications.html" style="color: inherit">Publications</a>
+        <a href="../blog.html" style="color: inherit">Blog</a>
+        <a href="../contact.html" style="color: inherit">Contact</a>
+      </div>
+      <div style="font-size: 0.78rem; color: var(--muted)">© 2026 Tathagata Debnath</div>
+    </footer>
+
+  </body>
+</html>
