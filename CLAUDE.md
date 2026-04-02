@@ -195,7 +195,7 @@ Bioinformatics (Research)
 ### Section 5: Quick Stats (optional, small strip)
 
 ```
-10 Publications · 80+ Citations · 2 CRAN Packages · h-index 12
+10 Publications · 80+ Citations · 2 CRAN Packages · h-index 5
 ```
 
 One line. No animated counters. Just facts.
@@ -433,7 +433,7 @@ Links: [GitHub]
 ### Page Header
 ```
 Headline: Publications & Software
-Subtitle: 10 peer-reviewed publications · 80+ citations · h-index 12
+Subtitle: 10 peer-reviewed publications · 80+ citations · h-index 5
           [Google Scholar Profile →]
 ```
 
