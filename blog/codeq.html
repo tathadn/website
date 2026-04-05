@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CodeQ: Teaching an LLM to Debug Code with MCTS and DPO — Tathagata Debnath</title>
-    <meta name="description" content="How to build a self-improving code debugging agent using Monte Carlo Tree Search and Direct Preference Optimization. 81.3% fix rate on DebugBench." />
+    <meta name="description" content="How a single architectural decision took fix rate from 10% to 81.3% on DebugBench. Ablation studies by bug category, difficulty, and rollout budget. Engineering findings from building a self-improving MCTS+DPO debugging agent." />
     <meta property="og:title" content="CodeQ: Teaching an LLM to Debug Code with MCTS and DPO" />
-    <meta property="og:description" content="How to build a self-improving code debugging agent using Monte Carlo Tree Search and Direct Preference Optimization. 81.3% fix rate on DebugBench." />
+    <meta property="og:description" content="How a single architectural decision took fix rate from 10% to 81.3% on DebugBench. Ablation studies by bug category, difficulty, and rollout budget. Engineering findings from building a self-improving MCTS+DPO debugging agent." />
     <meta property="og:type" content="article" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -150,7 +150,7 @@
       <div class="post-header">
         <div class="post-meta">
           <span>AI/ML Engineering</span>
-          <span>~9 min read</span>
+          <span>~12 min read</span>
           <span>April 2026</span>
         </div>
         <span class="eyebrow">Technical Writeup</span>
@@ -158,14 +158,30 @@
           CodeQ: Teaching an LLM to Debug Code with MCTS and DPO
         </h1>
         <p style="margin-top: 1.2rem; font-size: 1.1rem; line-height: 1.75; color: var(--muted); max-width: 58ch">
-          How a single architectural decision — switching from line-level edits to full rewrites — took fix rate from 10% to 81.3% on DebugBench. Plus: the 81% data duplication discovery, a bf16 NaN fix, and what DPO did and didn't transfer.
+          How a single architectural decision — switching from line-level edits to full rewrites — took fix rate from 10% to 81.3% on DebugBench. Plus: ablation studies, a bf16 NaN fix, and what DPO did and didn't transfer.
         </p>
       </div>
 
       <div class="prose">
 
+        <!-- Table of Contents -->
+        <nav style="margin-bottom: 2.4rem">
+          <ol style="padding-left: 1.4rem; margin-top: 0.4rem; font-size: 0.92rem">
+            <li><a href="#introduction" style="color: var(--primary)">Introduction</a></li>
+            <li><a href="#architecture" style="color: var(--primary)">Architecture Overview</a></li>
+            <li><a href="#refactor" style="color: var(--primary)">The Critical Refactor: Line Edits → Full Rewrites</a></li>
+            <li><a href="#data-quality" style="color: var(--primary)">Data Quality: The 81% Duplication Discovery</a></li>
+            <li><a href="#dpo-training" style="color: var(--primary)">DPO Training: What Worked and What Broke</a></li>
+            <li><a href="#results" style="color: var(--primary)">Results</a></li>
+            <li><a href="#ablations" style="color: var(--primary)">Ablation Studies</a></li>
+            <li><a href="#engineering-findings" style="color: var(--primary)">Engineering Findings Summary</a></li>
+            <li><a href="#what-id-do-differently" style="color: var(--primary)">What I'd Do Differently</a></li>
+            <li><a href="#links" style="color: var(--primary)">Links</a></li>
+          </ol>
+        </nav>
+
         <!-- Section 1 -->
-        <h2>1. Introduction</h2>
+        <h2 id="introduction">1. Introduction</h2>
         <p>
           Automated code debugging is hard. Not because current LLMs can't write code — they can. The problem is that debugging requires a search process: generate a fix, test it, observe the result, revise, repeat. A single forward pass through a language model doesn't do that. You need exploration.
         </p>
@@ -173,14 +189,14 @@
           CodeQ combines two ideas: Monte Carlo Tree Search (MCTS) to systematically explore fix strategies, and Direct Preference Optimization (DPO) to let the model learn from its own exploration data. The result is a self-improving debugging agent that gets better over time without any human labeling.
         </p>
         <p>
-          The core inspiration is Agent Q (Putta et al., 2024), which applied MCTS + DPO to web navigation. We adapt the same loop to code: explore bugs with MCTS, extract preference pairs from the trajectories, train with DPO, repeat.
+          The core inspiration is <a href="https://arxiv.org/abs/2408.07199" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 600">Agent Q (Putta et al., 2024)</a>, which applied MCTS + DPO to web navigation. We adapt the same loop to code: explore bugs with MCTS, extract preference pairs from the trajectories, train with DPO, repeat. We evaluate on <a href="https://github.com/thunlp/DebugBench" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 600">DebugBench</a>, a benchmark of Python debugging problems spanning syntax errors, logic bugs, reference errors, and multi-fault scenarios. The benchmark provides buggy functions paired with test suites — a clean signal for automated evaluation without human judgment.
         </p>
         <div class="callout">
-          <p><strong>One-line result:</strong> 81.3% fix rate on DebugBench (100/123 unique bugs), up from a 10% apparent baseline before the critical architecture refactor. After DPO Round 2, MCTS mode reaches 84%.</p>
+          <p><strong>One-line result:</strong> 81.3% fix rate on 123 unique DebugBench problems (after discovering and removing 81% data duplication), with DPO pushing MCTS mode to 84% — specifically on hard problems. Full code at <a href="https://github.com/tathadn/codeq" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 600">github.com/tathadn/codeq</a>.</p>
         </div>
 
         <!-- Section 2 -->
-        <h2>2. Architecture Overview</h2>
+        <h2 id="architecture">2. Architecture Overview</h2>
         <p>
           The system runs across two machines connected via SSH and scp:
         </p>
@@ -192,42 +208,89 @@
           LoRA adapters are transferred from Machine B to Machine A via scp after each training round, enabling a pipelined workflow where exploration and training can overlap across rounds.
         </p>
 
-        <div class="diagram">MCTS Rollouts (Machine A, 4-bit)
-        │
-        ▼
-Extract preference pairs
-(winners: fixed bugs, losers: failed attempts)
-        │
-        ▼
-DPO Training (Machine B, bf16 + LoRA)
-        │
-        ▼
-Transfer LoRA adapters via scp
-        │
-        ▼
-Evaluate on DebugBench
-        │
-        ▼
-Repeat</div>
+        <h3>Self-Improvement Loop</h3>
+        <p>
+          The full training cycle runs in five stages:
+        </p>
+        <ol>
+          <li><strong>MCTS Search:</strong> Machine A runs MCTS rollouts against DebugBench problems, generating candidate fixes and testing them in Docker sandboxes.</li>
+          <li><strong>Trajectory Collection:</strong> Winning fixes (passed tests) and losing attempts (failed tests) are logged with their blended Q-values.</li>
+          <li><strong>DPO Training:</strong> Machine B extracts preference pairs from trajectories and trains the model with LoRA-based DPO.</li>
+          <li><strong>Policy Update:</strong> Trained LoRA adapters are transferred back to Machine A via scp and merged into the inference model.</li>
+          <li><strong>Evaluate and Repeat:</strong> The updated model is evaluated on DebugBench. If performance improves, the cycle repeats with the updated policy generating new, potentially better trajectories for the next round of DPO training.</li>
+        </ol>
+
+        <!-- SVG Architecture Diagram -->
+        <div style="margin-top: 1.4rem; margin-bottom: 1.2rem; overflow-x: auto">
+          <svg viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; display: block; border-radius: 16px;">
+            <rect width="720" height="420" rx="16" fill="#002045"/>
+            <!-- Machine A box -->
+            <rect x="40" y="30" width="280" height="80" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
+            <text x="180" y="60" fill="rgba(255,255,255,0.5)" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="0.08em">MACHINE A (4-BIT, ~5 GB VRAM)</text>
+            <text x="180" y="88" fill="rgba(255,255,255,0.9)" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="middle">MCTS Rollouts</text>
+            <!-- Arrow down from Machine A -->
+            <line x1="180" y1="110" x2="180" y2="155" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+            <polygon points="180,162 174,152 186,152" fill="rgba(255,255,255,0.4)"/>
+            <!-- Trajectories box -->
+            <rect x="80" y="165" width="200" height="50" rx="10" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+            <text x="180" y="195" fill="rgba(255,255,255,0.85)" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle">Trajectory Collection</text>
+            <!-- Arrow down to Preference Pairs -->
+            <line x1="180" y1="215" x2="180" y2="250" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+            <polygon points="180,257 174,247 186,247" fill="rgba(255,255,255,0.4)"/>
+            <!-- Preference Pairs box -->
+            <rect x="60" y="260" width="240" height="50" rx="10" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+            <text x="180" y="290" fill="rgba(255,255,255,0.85)" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle">Preference Pair Extraction</text>
+            <!-- Arrow right to Machine B -->
+            <line x1="300" y1="285" x2="390" y2="285" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+            <polygon points="397,285 387,279 387,291" fill="rgba(255,255,255,0.4)"/>
+            <!-- Machine B box -->
+            <rect x="400" y="250" width="280" height="80" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
+            <text x="540" y="275" fill="rgba(255,255,255,0.5)" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="0.08em">MACHINE B (BF16, ~32 GB VRAM)</text>
+            <text x="540" y="308" fill="rgba(255,255,255,0.9)" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="middle">DPO Training (LoRA)</text>
+            <!-- Arrow up from Machine B -->
+            <line x1="540" y1="250" x2="540" y2="195" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+            <polygon points="540,188 534,198 546,198" fill="rgba(255,255,255,0.4)"/>
+            <!-- LoRA adapter box -->
+            <rect x="430" y="140" width="220" height="50" rx="10" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+            <text x="540" y="170" fill="rgba(255,255,255,0.85)" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle">LoRA Adapter (scp)</text>
+            <!-- Arrow left back to Machine A -->
+            <line x1="430" y1="165" x2="340" y2="80" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-dasharray="6,4"/>
+            <polygon points="335,76 341,87 347,78" fill="rgba(255,255,255,0.4)"/>
+            <!-- Evaluate box at bottom center -->
+            <rect x="240" y="355" width="240" height="46" rx="10" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+            <text x="360" y="383" fill="rgba(255,255,255,0.85)" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle">Evaluate on DebugBench</text>
+            <!-- Arrow from Machine B down to Evaluate -->
+            <line x1="540" y1="330" x2="480" y2="355" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+            <polygon points="477,358 486,349 490,360" fill="rgba(255,255,255,0.4)"/>
+            <!-- Arrow from Evaluate back up to Machine A -->
+            <path d="M 240 378 Q 30 378 30 70 Q 30 55 40 55" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-dasharray="6,4"/>
+            <polygon points="40,55 50,49 50,61" fill="rgba(255,255,255,0.4)"/>
+            <!-- Repeat label -->
+            <text x="22" y="220" fill="rgba(255,255,255,0.35)" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="0.06em" transform="rotate(-90, 22, 220)">REPEAT</text>
+          </svg>
+        </div>
 
         <h3>MCTS Engine</h3>
         <p>
-          At each node in the tree, the model generates K=4 candidate fixes at temperature 0.8. A critic (same model, temperature 0.2) scores each candidate on correctness, clarity, and plausibility. UCB1 selects which node to expand next, balancing exploitation of promising fixes with exploration of alternatives.
+          At each node in the tree, the model generates K=4 candidate fixes at temperature 0.8. A critic (the same model at temperature 0.2) scores each candidate on correctness, clarity, and plausibility. The lower temperature makes the critic more deterministic and consistent in its evaluations, while the higher generation temperature encourages diverse fix strategies.
         </p>
         <p>
-          Each candidate fix is executed in a Docker sandbox (no network, 512 MB RAM, 30-second timeout). Pass/fail from the sandbox is the ground truth signal.
+          UCB1 selects which node to expand next, balancing exploitation of high Q-value fixes with exploration of low-visit-count alternatives. The formula trades off known-good nodes against under-explored ones — without this balance, the search would collapse into greedy single-path behavior and lose the diversity that makes MCTS valuable for debugging.
+        </p>
+        <p>
+          Each candidate fix is executed in a Docker sandbox with strict isolation: no network access, 512 MB RAM limit, and a 30-second timeout. This prevents generated code from making network calls, consuming unbounded memory, or running infinite loops. Pass/fail from the sandbox — determined by running the provided test suite — is the ground truth signal that feeds back into the MCTS tree as the reward.
         </p>
 
         <h3>DPO Training Loop</h3>
         <p>
-          Preference pairs are extracted from MCTS trajectories: winning fixes (those that passed tests) are the "chosen" completions; failed attempts are "rejected." Blended Q-values (α=0.5 × MCTS value + AI critic score) rank them.
+          Preference pairs are extracted from MCTS trajectories: winning fixes (those that passed tests) are the "chosen" completions; failed attempts are "rejected." Blended Q-values (α=0.5 × MCTS value + AI critic score) rank them, combining the tree-search signal with the critic's assessment to produce a more robust preference ordering than either signal alone.
         </p>
         <p>
-          We use off-policy DPO with pre-computed reference log-probabilities to decouple the preference data collection from training. LoRA config: rank=32, alpha=64, all attention + MLP layers, lr=5e-6, 2 epochs, β=0.1.
+          We use off-policy DPO with pre-computed reference log-probabilities. The key trick: instead of loading a second copy of the model as the reference policy (which would require another ~14 GB VRAM), we compute all reference log-probs in a single forward pass before training starts and cache them. This decouples data collection from training and keeps the GPU memory footprint manageable on a single H100. LoRA config: rank=32, alpha=64, targeting all attention and MLP layers, lr=5e-6, 2 epochs, β=0.1.
         </p>
 
         <!-- Section 3 -->
-        <h2>3. The Critical Refactor: Line Edits → Full Rewrites</h2>
+        <h2 id="refactor">3. The Critical Refactor: Line Edits → Full Rewrites</h2>
         <p>
           The original CodeQ design used a structured action space inspired by SWE-bench-style agents: PLAN, THOUGHT, and CODE_ACTION tokens, with line-level edit operations — EDIT (replace lines), INSERT (add lines), DELETE (remove lines), and RUN_TESTS.
         </p>
@@ -235,11 +298,11 @@ Repeat</div>
           This seemed principled. In practice, it was a disaster.
         </p>
         <p>
-          The model frequently generated malformed structured outputs: mismatched line numbers, incorrect action syntax, truncated edits. The parser failed silently on many of these, counting them as unsuccessful fixes. Our apparent fix rate was 0.38%. Something was clearly wrong.
+          The model frequently generated malformed structured outputs: mismatched line numbers, incorrect action syntax, truncated edits. The parser failed silently on many of these, counting them as unsuccessful fixes. Our apparent fix rate was 0.38% — but this was a parsing artifact. When we added explicit fallback detection, the true base rate on correctly-parsed outputs was ~36%. But the parsing overhead was still killing throughput.
         </p>
 
         <div class="callout">
-          <p><strong>Discovery:</strong> The 0.38% apparent rate was a parsing artifact. When we added explicit fallback detection, the true base rate on correctly-parsed outputs was ~36%. But the parsing overhead was still killing throughput — MCTS with line edits ran ~14× slower than the rewrite approach.</p>
+          <p><strong>Discovery:</strong> Switching to <code>full_rewrite</code> mode eliminated all parsing failures and revealed the model's true debugging capability. MCTS with full rewrites ran ~14× faster per rollout because it eliminated the multi-step edit-parse-apply cycle entirely.</p>
         </div>
 
         <p>
@@ -277,9 +340,9 @@ Test cases that must pass:
         </p>
 
         <!-- Section 4 -->
-        <h2>4. Data Quality: The 81% Duplication Discovery</h2>
+        <h2 id="data-quality">4. Data Quality: The 81% Duplication Discovery</h2>
         <p>
-          During preprocessing of DebugBench, we found that approximately 81% of the dataset entries were duplicates. The raw download contained ~650 problem instances; after deduplication, only ~123 unique problems remained.
+          During preprocessing of <a href="https://github.com/thunlp/DebugBench" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 600">DebugBench</a>, we found that approximately 81% of the dataset entries were duplicates. The raw download contained ~650 problem instances; after deduplication, only ~123 unique problems remained.
         </p>
         <p>
           This matters for two reasons:
@@ -296,11 +359,11 @@ Test cases that must pass:
         </div>
 
         <!-- Section 5 -->
-        <h2>5. DPO Training: What Worked and What Broke</h2>
+        <h2 id="dpo-training">5. DPO Training: What Worked and What Broke</h2>
 
         <h3>Round 1 DPO</h3>
         <p>
-          Round 1 DPO ran without incident. We extracted ~400 preference pairs from the MCTS trajectories, trained for 2 epochs, and saw modest improvement on held-out problems.
+          Round 1 DPO ran without incident. We extracted ~400 preference pairs from the MCTS trajectories, trained for 2 epochs with LoRA on Machine B, and saw modest improvement on held-out problems. The training was stable, loss curves were smooth, and the adapter transferred cleanly back to Machine A for evaluation.
         </p>
 
         <h3>Round 2: The bf16 NaN Collapse</h3>
@@ -330,13 +393,16 @@ trl==0.29.1  # 1.0.0 broke precompute_ref_log_probs
 
         <h3>Preference Extraction</h3>
         <p>
-          Preference pairs are extracted by comparing trajectories within the same MCTS tree. For each bug, we identify the best fix (highest Q-value among fixes that passed tests) and the best non-fix (highest Q-value among attempts that failed tests). The Q-value blending:
+          Preference pairs are extracted by comparing trajectories within the same MCTS tree. At each internal tree node, we compare sibling trajectories. The fix with the highest blended Q-value (α=0.5 × MCTS value + AI critic score) that passed tests becomes "chosen"; the highest-scoring failure becomes "rejected." We filter pairs where |Q_chosen - Q_rejected| &lt; 0.2 to avoid learning from noise — pairs with near-identical scores provide a weak preference signal that can destabilize training.
+        </p>
+        <p>
+          The Q-value blending:
         </p>
 <pre><code>def compute_q_value(mcts_value: float, critic_score: float, alpha: float = 0.5) -> float:
     return alpha * mcts_value + (1 - alpha) * critic_score</code></pre>
 
         <!-- Section 6 -->
-        <h2>6. Results</h2>
+        <h2 id="results">6. Results</h2>
 
         <div style="background: var(--surface-container-low); border-radius: 16px; padding: 1.4rem; overflow-x: auto; margin-top: 1.4rem">
           <table class="results-table">
@@ -357,7 +423,7 @@ trl==0.29.1  # 1.0.0 broke precompute_ref_log_probs
               </tr>
               <tr>
                 <td>MCTS + full_rewrite (+ DPO Round 2)</td>
-                <td style="color: var(--primary)">84.0% (42/50)</td>
+                <td style="color: var(--primary)"><strong>84.0%</strong> (42/50)</td>
               </tr>
               <tr>
                 <td>Single-pass full_rewrite (+ DPO Round 2)</td>
@@ -371,6 +437,10 @@ trl==0.29.1  # 1.0.0 broke precompute_ref_log_probs
           </table>
         </div>
 
+        <p>
+          The main results tell a clear story: MCTS search is the dominant factor, nearly doubling the fix rate from 43.9% to 81.3%. DPO adds an incremental improvement on top, pushing MCTS mode to 84% — a smaller but real gain, especially concentrated on harder problems (see <a href="#ablations" style="color: var(--primary); font-weight: 600">Ablation Studies</a> below).
+        </p>
+
         <h3>DPO Transfer: The Honest Finding</h3>
         <p>
           DPO Round 2 improves MCTS mode from 81.3% to 84%. This is the positive result.
@@ -379,29 +449,208 @@ trl==0.29.1  # 1.0.0 broke precompute_ref_log_probs
           DPO Round 2 does <strong>not</strong> transfer to single-pass full_rewrite mode. The fix rate stays at 43.9% — identical to the base model. Zero transfer.
         </p>
         <p>
-          The explanation is straightforward: the DPO training data consists entirely of MCTS trajectories. The model learns to prefer good fixes when given MCTS-style multi-step reasoning context. It does not learn to generate better single-pass rewrites, because that behavior was never in the training signal.
+          The explanation is straightforward: the DPO training data consists entirely of MCTS trajectories — multi-step fix attempts where the model iteratively refines solutions across tree branches. The model learns to prefer good fixes when given this MCTS-style multi-step reasoning context. It does not learn to generate better single-pass rewrites, because single-pass generation behavior was never represented in the training signal. The policy shift from DPO is specific to the distribution it trained on.
         </p>
         <p>
-          This is not a failure. It's an informative result about how DPO specialization works in self-improvement loops. The model improves on the task distribution it trained on, not on adjacent tasks.
+          This is not a failure — it's an informative result about how DPO specialization works in self-improvement loops. The model improves on the task distribution it trained on, not on adjacent tasks. It also suggests a clear next experiment: train DPO on single-pass trajectories to test whether transfer in the other direction is possible.
         </p>
 
         <!-- Section 7 -->
-        <h2>7. What I'd Do Differently</h2>
+        <h2 id="ablations">7. Ablation Studies</h2>
         <p>
-          Four things worth trying in a Round 3+:
+          The top-line 81.3% fix rate obscures important variation across bug types, difficulty levels, and compute budgets. Three ablations break down where the gains actually come from.
+        </p>
+
+        <h3>7.1 By Bug Category</h3>
+
+        <div style="background: var(--surface-container-low); border-radius: 16px; padding: 1.4rem; overflow-x: auto; margin-top: 1.2rem">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th style="text-align: right">Rewrite (base)</th>
+                <th style="text-align: right">MCTS (base)</th>
+                <th style="text-align: right">MCTS (+ DPO)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Syntax</td>
+                <td>61.9%</td>
+                <td><strong>95.0%</strong></td>
+                <td><strong>95.0%</strong></td>
+              </tr>
+              <tr>
+                <td>Logic</td>
+                <td>45.8%</td>
+                <td>90.0%</td>
+                <td>85.0%</td>
+              </tr>
+              <tr>
+                <td>Reference</td>
+                <td>55.9%</td>
+                <td>80.0%</td>
+                <td>80.0%</td>
+              </tr>
+              <tr>
+                <td>Multiple</td>
+                <td>31.8%</td>
+                <td>90.0%</td>
+                <td>85.0%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          MCTS saturates on syntax errors (95%) where the search space is narrow — there are relatively few valid rewrites for a missing semicolon or mismatched bracket, so even modest search finds the fix. The largest gains appear on multiple-fault bugs (31.8% → 90%), where iterative search over full rewrites avoids the combinatorial explosion that makes line-level patching intractable. With multiple bugs present, line-edit approaches must independently locate and fix each bug, and a failure on any one prevents passing the test suite. Full rewrites sidestep this by regenerating the entire function coherently.
+        </p>
+        <p>
+          Interestingly, DPO slightly <em>reduces</em> performance on logic and multiple-fault categories (90% → 85%), suggesting the DPO policy may be over-specializing on certain fix patterns at the expense of exploration diversity. When the preference data is dominated by simpler fixes (which succeed more often and thus generate more training pairs), the model may learn to prefer conservative rewrites that work well on average but miss the creative solutions needed for complex multi-fault bugs.
+        </p>
+
+        <h3>7.2 By Difficulty</h3>
+
+        <div style="background: var(--surface-container-low); border-radius: 16px; padding: 1.4rem; overflow-x: auto; margin-top: 1.2rem">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Difficulty</th>
+                <th style="text-align: right">Rewrite (base → DPO)</th>
+                <th style="text-align: right">MCTS (base → DPO)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Easy</td>
+                <td>56.8% → 56.8%</td>
+                <td>90% → 90%</td>
+              </tr>
+              <tr>
+                <td>Medium</td>
+                <td>40.7% → 44.4%</td>
+                <td>90% → 90%</td>
+              </tr>
+              <tr>
+                <td>Hard</td>
+                <td>34.4% → 34.4%</td>
+                <td>80% → <strong>85%</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          DPO improves performance where it matters most: hard problems under MCTS search (80% → <strong>85%</strong>). Easy and medium problems are already saturated by MCTS alone — there's no headroom for DPO to add value. The fact that DPO's gains concentrate on hard problems suggests the preference signal from MCTS trajectories is most informative when the search encounters genuine difficulty, producing diverse winning and losing trajectories that the policy can learn from.
+        </p>
+
+        <h3>7.3 By Rollout Budget</h3>
+
+        <div style="background: var(--surface-container-low); border-radius: 16px; padding: 1.4rem; overflow-x: auto; margin-top: 1.2rem">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Rollouts</th>
+                <th style="text-align: right">MCTS (base)</th>
+                <th style="text-align: right">MCTS (+ DPO)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td>80%</td>
+                <td>78%</td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td>80%</td>
+                <td>80%</td>
+              </tr>
+              <tr>
+                <td>5</td>
+                <td>80%</td>
+                <td>82%</td>
+              </tr>
+              <tr>
+                <td>10</td>
+                <td>84%</td>
+                <td>84%</td>
+              </tr>
+              <tr>
+                <td>20</td>
+                <td>84%</td>
+                <td><strong>86%</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          Performance plateaus at ~10 rollouts for the base model — additional search doesn't help once the easy solutions have been found. The base model at 1 rollout already achieves 80%, which means the majority of fixable bugs are solvable on the first or second attempt; the remaining 4% gain (80% → 84%) requires 10× the compute.
+        </p>
+        <p>
+          The DPO policy shows a slight advantage at higher budgets (<strong>86%</strong> at 20 rollouts vs. 84% for the base model), suggesting that DPO produces candidates that are more distinguishable under extended search — the trained policy generates fixes that are more differentiated from each other, giving the MCTS tree more useful branches to explore. The practical takeaway: 10 rollouts is the efficiency sweet spot, but if you can afford 20, the DPO-trained policy extracts marginal value from the extra compute.
+        </p>
+
+        <!-- Section 8 -->
+        <h2 id="engineering-findings">8. Engineering Findings Summary</h2>
+        <p>
+          For quick reference, here are the key engineering decisions and their impact on the project.
+        </p>
+
+        <div style="background: var(--surface-container-low); border-radius: 16px; padding: 1.4rem; overflow-x: auto; margin-top: 1.2rem">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Finding</th>
+                <th style="text-align: right">Impact</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Full-rewrite action space</td>
+                <td>10% → <strong>81.3%</strong> solve rate</td>
+              </tr>
+              <tr>
+                <td>81% data duplication in DebugBench</td>
+                <td>Discovered and fixed before Round 2</td>
+              </tr>
+              <tr>
+                <td>fp32 logit upcast for DPO</td>
+                <td>Fixed NaN loss under bf16</td>
+              </tr>
+              <tr>
+                <td>TRL pinned to 0.29.1</td>
+                <td>Avoided breaking changes in 1.0.0</td>
+              </tr>
+              <tr>
+                <td>DPO does not transfer to single-pass</td>
+                <td>Training distribution mismatch</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Section 9 -->
+        <h2 id="what-id-do-differently">9. What I'd Do Differently</h2>
+        <p>
+          Five things worth trying in a Round 3+:
         </p>
         <ul>
           <li>
-            <strong>Train DPO on full_rewrite trajectories</strong> (not just MCTS trajectories) to test whether single-pass transfer is possible.
+            <strong>Train DPO on full_rewrite trajectories</strong> (not just MCTS trajectories) to test whether single-pass transfer is possible. The current training data only covers MCTS-style multi-step reasoning, which explains the zero transfer.
           </li>
           <li>
             <strong>Run Round 3 to measure diminishing returns.</strong> The 81% → 84% improvement from Round 1 to 2 is modest. It's unclear whether Round 3 would hit a ceiling or keep climbing.
           </li>
           <li>
-            <strong>Cross-benchmark generalization.</strong> All results are on DebugBench. SWE-bench Lite would be a stronger test of whether MCTS-trained fix strategies generalize.
+            <strong>Cross-benchmark generalization.</strong> All results are on DebugBench. SWE-bench Lite would be a stronger test of whether MCTS-trained fix strategies generalize to real-world repository-level bugs.
           </li>
           <li>
             <strong>Better preference extraction.</strong> The current blended Q-value (α=0.5 MCTS + critic) is a heuristic. A learned value function trained on execution outcomes would be more principled.
+          </li>
+          <li>
+            <strong>Investigate the DPO regression on logic/multiple-fault categories.</strong> The ablation shows DPO slightly hurts performance on these categories (90% → 85%). This could indicate the preference signal is biased toward certain fix patterns, or that the blended Q-value threshold isn't filtering noise effectively. A per-category DPO training run would isolate whether this is a data distribution issue or an optimization issue.
           </li>
         </ul>
 
@@ -411,12 +660,19 @@ trl==0.29.1  # 1.0.0 broke precompute_ref_log_probs
           </p>
         </div>
 
-        <!-- Links -->
-        <h2>Links</h2>
+        <!-- Section 10 -->
+        <h2 id="links">10. Links</h2>
         <ul>
           <li><a href="https://github.com/tathadn/codeq" target="_blank" rel="noopener" style="font-weight: 700; color: var(--primary)">GitHub: github.com/tathadn/codeq</a></li>
-          <li>Inspired by: Agent Q — Putta et al., 2024</li>
+          <li>Inspired by: <a href="https://arxiv.org/abs/2408.07199" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 600">Agent Q — Putta et al., 2024</a></li>
+          <li>Benchmark: <a href="https://github.com/thunlp/DebugBench" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 600">DebugBench — Tian et al., 2024</a></li>
         </ul>
+        <p>
+          Part of a portfolio exploring AI for software quality. Next up: VisionTriage (multimodal bug triage) and Speculative Decoding (inference optimization).
+        </p>
+        <p style="margin-top: 1.4rem">
+          <a href="../blog.html" style="font-weight: 700; color: var(--primary)">← Back to all posts</a>
+        </p>
 
       </div><!-- /prose -->
 
